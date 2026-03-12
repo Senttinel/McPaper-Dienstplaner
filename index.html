@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>McPaper Dienstplaner---Von Kasimir</title>
+    <title>McPaper Dienstplaner - Master</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
@@ -22,6 +22,11 @@
         .date-picker-area { margin-bottom: 20px; display: flex; gap: 15px; align-items: center; padding: 10px; background: #fff; border-radius: 8px; font-weight: bold;}
         .date-input { border: 2px solid #ddd; padding: 8px; border-radius: 6px; }
 
+        /* FILTER STYLE */
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; background: #eee; padding: 10px; border-radius: 8px; align-items: center; }
+        .filter-btn { padding: 8px 15px; border: 1px solid #ccc; border-radius: 5px; cursor: pointer; font-weight: bold; background: white; transition: 0.2s; }
+        .filter-btn.active { background: var(--mcp-blue); color: white; border-color: var(--mcp-blue); }
+
         table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 3px solid var(--mcp-blue); background: #fff; }
         th { background: var(--mcp-blue); color: white; padding: 12px; font-size: 14px; border: 1px solid #ddd; }
         td { border: 1px solid #ddd; padding: 8px; text-align: center; vertical-align: top; background: white; transition: background 0.3s; }
@@ -32,6 +37,7 @@
         .config-btn { position: absolute; top: 5px; right: 5px; cursor: pointer; font-size: 16px; color: #999; border: none; background: none; }
         .name-input { font-weight: bold; width: 90%; border: 1px solid #ccc; padding: 8px; font-size: 14px; border-radius: 4px; }
         .stunden-info { font-size: 11px; margin-top: 5px; color: #666; font-weight: bold; }
+        .stamm-badge { font-size: 9px; padding: 2px 4px; background: #e8e8e8; border-radius: 3px; color: #555; margin-left: 5px; vertical-align: middle; }
         .status-green { color: #28a745; }
         .status-red { color: #e30613; }
         
@@ -48,45 +54,66 @@
         .btn-new { background: #28a745; }
         .btn-export { background: var(--mcp-red); }
 
-        /* EXPORT-ONLY STYLES */
-        .export-header-title { font-size: 24px; font-weight: bold; color: var(--mcp-blue); margin-bottom: 20px; text-align: center; display: block; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 320px; text-align: center; }
+        .modal-field { margin: 15px 0; text-align: left; }
+        .modal-field label { font-size: 12px; font-weight: bold; color: #666; }
+        .modal-field input, .modal-field select { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+
+        /* EXPORT STYLES */
+        .export-header-title { font-size: 26px; font-weight: bold; color: var(--mcp-blue); margin-bottom: 5px; text-align: center; display: block; }
+        .export-filiale-title { font-size: 32px; font-weight: 900; color: var(--mcp-red); text-align: center; display: block; margin-bottom: 20px; }
         .export-display-cell { vertical-align: middle !important; padding: 12px 6px !important; }
         .export-display-container { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 100%; }
-        .export-display-name { font-weight: bold; font-size: 16px; display: block; margin-top: 5px; text-align: left; padding: 8px; }
-        .export-display-times { font-size: 14px; font-weight: bold; color: #222; margin-bottom: 3px; }
+        .export-display-name { font-weight: bold; font-size: 16px; display: block; margin-top: 5px; }
+        .export-display-times { font-size: 14px; font-weight: bold; color: #222; }
         .export-display-filiale { font-size: 11px; font-weight: bold; color: var(--mcp-blue); border: 1px solid var(--mcp-blue); border-radius: 3px; padding: 2px 4px; background: #fff; }
         .export-display-frei { font-size: 14px; font-weight: bold; color: #777; font-style: italic; }
-        .export-display-hours { font-size: 11px; color: #666; font-weight: bold; margin-top: 5px;}
-
     </style>
 </head>
 <body>
 
-<div id="config-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
-    <div style="background: white; padding: 25px; border-radius: 12px; width: 300px; text-align: center;">
-        <h3 id="modal-name">Setup</h3>
-        <p>Monatliche Soll-Stunden:</p>
-        <input type="number" id="soll-stunden-input" style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px;">
+<div id="config-modal" class="modal">
+    <div class="modal-content">
+        <h3 id="modal-name">Mitarbeiter Setup</h3>
+        <div class="modal-field">
+            <label>Monatliche Soll-Stunden:</label>
+            <input type="number" id="soll-stunden-input">
+        </div>
+        <div class="modal-field">
+            <label>Stamm-Filiale:</label>
+            <select id="stamm-filiale-input">
+                <option value="F9212">F9212</option>
+                <option value="F9260">F9260</option>
+            </select>
+        </div>
         <button class="btn btn-add" onclick="saveConfig()">Speichern</button>
         <button class="btn" style="background:#ccc; margin-top:10px" onclick="closeModal()">Abbrechen</button>
     </div>
 </div>
 
 <div class="app-card">
-    <header><h2>McPaper Wochen-Dienstplan</h2></header>
+    <header><h2>McPaper Master-Dienstplaner</h2></header>
     
-    <div id="export-area">
-        <div class="date-picker-area">
-            📅 Zeitraum von: <input type="date" class="date-input" id="von-datum" onchange="saveData(); updateStundenAnzeige();"> 
-            bis <input type="date" class="date-input" id="bis-datum" onchange="saveData(); updateStundenAnzeige();">
-        </div>
+    <div class="date-picker-area">
+        📅 Zeitraum: <input type="date" class="date-input" id="von-datum" onchange="saveData(); updateStundenAnzeige();"> 
+        bis <input type="date" class="date-input" id="bis-datum" onchange="saveData(); updateStundenAnzeige();">
+    </div>
 
+    <div class="filter-bar">
+        <span>🔍 Editor-Filter:</span>
+        <button class="filter-btn active" onclick="setFilter('all', this)">Alle anzeigen</button>
+        <button class="filter-btn" onclick="setFilter('F9212', this)">Nur F9212</button>
+        <button class="filter-btn" onclick="setFilter('F9260', this)">Nur F9260</button>
+    </div>
+
+    <div id="export-area">
         <table>
             <thead>
                 <tr>
                     <th style="width: 18%;">Mitarbeiter</th>
                     <th>Mo</th><th>Di</th><th>Mi</th><th>Do</th><th>Fr</th><th>Sa</th>
-                    <th class="no-export"></th>
+                    <th class="no-export" style="width: 50px;"></th>
                 </tr>
             </thead>
             <tbody id="plan-body"></tbody>
@@ -95,19 +122,40 @@
 
     <div class="controls">
         <button class="btn btn-add" onclick="neueZeile(); saveData();">➕ Person hinzufügen</button>
-        <button class="btn btn-new" onclick="neuerDienstplan()">📅 Neuen Dienstplan erstellen</button>
-        <button class="btn btn-export" id="btn-export" onclick="alsBildSpeichern()">🚀 Exportieren</button>
+        <button class="btn btn-new" onclick="neuerDienstplan()">📅 Woche abschließen</button>
+        <button class="btn btn-export" id="btn-export" onclick="startExport()">🚀 Beide Pläne exportieren</button>
     </div>
 </div>
 
 <script>
     let currentEditingRow = null;
+    let currentFilter = 'all';
 
     window.onload = () => { loadData(); };
+
+    function setFilter(val, btn) {
+        currentFilter = val;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyFilter();
+    }
+
+    function applyFilter() {
+        const rows = document.querySelectorAll('#plan-body tr');
+        rows.forEach(row => {
+            if (currentFilter === 'all') {
+                row.style.display = '';
+            } else {
+                row.style.display = (row.dataset.stammFiliale === currentFilter) ? '' : 'none';
+            }
+        });
+    }
 
     function neueZeile(savedData = null) {
         const tbody = document.getElementById('plan-body');
         const tr = document.createElement('tr');
+        const stamm = savedData ? (savedData.stammFiliale || "F9212") : "F9212";
+        tr.dataset.stammFiliale = stamm;
         
         let tageHTML = '';
         for(let i=0; i<6; i++) {
@@ -129,10 +177,13 @@
             <td class="name-cell">
                 <button class="config-btn" onclick="openConfig(this)">⚙️</button>
                 <input type="text" class="name-input" placeholder="Name" oninput="saveData()">
-                <div class="stunden-info">Std: <span class="ist-stunden">0</span> / <span class="soll-stunden">0</span></div>
+                <div class="stunden-info">
+                    Std: <span class="ist-stunden">0</span> / <span class="soll-stunden">0</span>
+                    <span class="stamm-badge">${stamm}</span>
+                </div>
             </td>
             ${tageHTML}
-            <td class="no-export"><button style="background:none; border:none; color:red; cursor:pointer;" onclick="this.parentElement.parentElement.remove(); saveData();">✖</button></td>
+            <td class="no-export"><button style="background:none; border:none; color:red; cursor:pointer;" onclick="if(confirm('Person löschen?')) {this.parentElement.parentElement.remove(); saveData();}">✖</button></td>
         `;
         tbody.appendChild(tr);
 
@@ -148,6 +199,7 @@
                 if(tag.isOff) cell.classList.add('is-off');
             });
         }
+        applyFilter();
         updateStundenAnzeige();
     }
 
@@ -155,13 +207,18 @@
         currentEditingRow = btn.closest('tr');
         document.getElementById('modal-name').innerText = currentEditingRow.querySelector('.name-input').value || "Mitarbeiter";
         document.getElementById('soll-stunden-input').value = currentEditingRow.querySelector('.soll-stunden').innerText;
+        document.getElementById('stamm-filiale-input').value = currentEditingRow.dataset.stammFiliale || "F9212";
         document.getElementById('config-modal').style.display = 'flex';
     }
 
     function saveConfig() {
+        const neueFiliale = document.getElementById('stamm-filiale-input').value;
         currentEditingRow.querySelector('.soll-stunden').innerText = document.getElementById('soll-stunden-input').value;
+        currentEditingRow.dataset.stammFiliale = neueFiliale;
+        currentEditingRow.querySelector('.stamm-badge').innerText = neueFiliale;
         closeModal();
         saveData();
+        applyFilter();
         updateStundenAnzeige();
     }
 
@@ -221,7 +278,12 @@
         const rows = document.querySelectorAll('#plan-body tr');
         const data = { von: document.getElementById('von-datum').value, bis: document.getElementById('bis-datum').value, mitarbeiter: [] };
         rows.forEach(row => {
-            const m = { name: row.querySelector('.name-input').value, sollStunden: row.querySelector('.soll-stunden').innerText, tage: [] };
+            const m = { 
+                name: row.querySelector('.name-input').value, 
+                sollStunden: row.querySelector('.soll-stunden').innerText, 
+                stammFiliale: row.dataset.stammFiliale || "F9212",
+                tage: [] 
+            };
             row.querySelectorAll('td:not(.name-cell):not(.no-export)').forEach(cell => {
                 m.tage.push({ start: cell.querySelector('.start-time').value, end: cell.querySelector('.end-time').value, filiale: cell.querySelector('.filiale-select').value, isOff: cell.classList.contains('is-off') });
             });
@@ -238,13 +300,13 @@
             document.getElementById('bis-datum').value = data.bis;
             data.mitarbeiter.forEach(m => neueZeile(m));
         } else {
-            for(let i=0; i<6; i++) neueZeile();
+            for(let i=0; i<3; i++) neueZeile(); // Weniger Standardzeilen für Übersicht
             document.getElementById('von-datum').value = new Date().toISOString().split('T')[0];
         }
     }
 
     function neuerDienstplan() {
-        if(!confirm("Stunden sichern und Plan leeren?")) return;
+        if(!confirm("Woche abschließen? Stunden werden gesichert, Plan wird geleert.")) return;
         const vonVal = document.getElementById('von-datum').value;
         const monthKey = new Date(vonVal).getMonth() + "-" + new Date(vonVal).getFullYear();
         const history = JSON.parse(localStorage.getItem('mcp_hours_history') || "{}");
@@ -271,68 +333,80 @@
         updateStundenAnzeige();
     }
 
-    function alsBildSpeichern() {
-        const btnExport = document.getElementById('btn-export');
-        btnExport.innerText = "Exportieren...";
-        
-        const originalArea = document.getElementById('export-area');
-        const exportDouble = originalArea.cloneNode(true);
-        exportDouble.id = 'export-double';
-        
-        const von = document.getElementById('von-datum').value;
-        const bis = document.getElementById('bis-datum').value;
-        const headerText = document.createElement('div');
-        headerText.className = 'export-header-title';
-        headerText.innerText = `Dienstplan vom ${von} bis ${bis}`;
-        exportDouble.prepend(headerText);
+    async function startExport() {
+        const btn = document.getElementById('btn-export');
+        btn.innerText = "Erstelle F9212...";
+        await alsBildSpeichern("F9212");
+        btn.innerText = "Erstelle F9260...";
+        await alsBildSpeichern("F9260");
+        btn.innerText = "🚀 Beide Pläne exportieren";
+        alert("Fertig! Beide Pläne sind im Download-Ordner.");
+    }
 
-        exportDouble.querySelectorAll('.no-export, .config-btn, .off-btn, .date-picker-area').forEach(e => e.style.display = 'none');
-        
-        const rowsOriginal = originalArea.querySelectorAll('#plan-body tr');
-        rowsOriginal.forEach((rowOrig, rowIndex) => {
-            const doubleRow = exportDouble.querySelector('#plan-body tr:nth-child('+(rowIndex+1)+')');
+    function alsBildSpeichern(targetFiliale) {
+        return new Promise((resolve) => {
+            const originalArea = document.getElementById('export-area');
+            const exportDouble = originalArea.cloneNode(true);
             
-            const nameVal = rowOrig.querySelector('.name-input').value || "Name";
-            const istStd = rowOrig.querySelector('.ist-stunden').innerText;
-            const sollStd = rowOrig.querySelector('.soll-stunden').innerText;
-            const nameCell = doubleRow.querySelector('.name-cell');
-            nameCell.innerHTML = `<span class="export-display-name">${nameVal}</span><span class="export-display-hours">Std. Mo: ${istStd} / ${sollStd}</span>`;
+            const von = document.getElementById('von-datum').value;
+            const bis = document.getElementById('bis-datum').value;
+            exportDouble.innerHTML = `
+                <div class="export-header-title">Dienstplan vom ${von} bis ${bis}</div>
+                <div class="export-filiale-title">FILIALE ${targetFiliale}</div>
+                <table>
+                    <thead><tr><th style="width:18%">Mitarbeiter</th><th>Mo</th><th>Di</th><th>Mi</th><th>Do</th><th>Fr</th><th>Sa</th></tr></thead>
+                    <tbody class="double-body"></tbody>
+                </table>
+            `;
 
-            const cellsOriginal = rowOrig.querySelectorAll('td:not(.name-cell):not(.no-export)');
-            cellsOriginal.forEach((cellOrig, cellIndex) => {
-                const s = cellOrig.querySelector('.start-time').value;
-                const e = cellOrig.querySelector('.end-time').value;
-                const fil = cellOrig.querySelector('.filiale-select').value;
-                const doubleTd = doubleRow.querySelectorAll('td:not(.name-cell):not(.no-export)')[cellIndex];
-                doubleTd.className = 'export-display-cell';
-                
-                const container = document.createElement('div');
-                container.className = 'export-display-container';
-                
-                // KORRIGIERTE LOGIK: Nur wenn explizit FREI gewählt ist
-                if (cellOrig.classList.contains('is-off') || fil === 'FREI') {
-                    doubleTd.style.backgroundColor = '#f2f2f2';
-                    container.innerHTML = `<span class="export-display-frei">FREI</span>`;
-                } else if (s && e && fil) {
-                    container.innerHTML = `<span class="export-display-times">${s} - ${e}</span><span class="export-display-filiale">${fil}</span>`;
+            const doubleBody = exportDouble.querySelector('.double-body');
+            const rowsOriginal = originalArea.querySelectorAll('#plan-body tr');
+
+            rowsOriginal.forEach((rowOrig) => {
+                if (rowOrig.dataset.stammFiliale === targetFiliale) {
+                    const tr = document.createElement('tr');
+                    const nameVal = rowOrig.querySelector('.name-input').value || "Name";
+                    const istStd = rowOrig.querySelector('.ist-stunden').innerText;
+                    const sollStd = rowOrig.querySelector('.soll-stunden').innerText;
+                    let html = `<td class="export-display-cell"><span class="export-display-name">${nameVal}</span><span style="font-size:10px; color:#666">Monat: ${istStd}/${sollStd}</span></td>`;
+                    
+                    const cellsOriginal = rowOrig.querySelectorAll('td:not(.name-cell):not(.no-export)');
+                    cellsOriginal.forEach(cellOrig => {
+                        const s = cellOrig.querySelector('.start-time').value;
+                        const e = cellOrig.querySelector('.end-time').value;
+                        const fil = cellOrig.querySelector('.filiale-select').value;
+                        let cellContent = "";
+                        let style = "";
+                        
+                        if (cellOrig.classList.contains('is-off') || fil === 'FREI') {
+                            cellContent = `<span class="export-display-frei">FREI</span>`;
+                            style = "background-color: #f2f2f2;";
+                        } else if (s && e) {
+                            const filLabel = fil ? `<span class="export-display-filiale">${fil}</span>` : "";
+                            cellContent = `<div class="export-display-container"><span class="export-display-times">${s} - ${e}</span>${filLabel}</div>`;
+                        }
+                        html += `<td class="export-display-cell" style="${style}">${cellContent}</td>`;
+                    });
+                    tr.innerHTML = html;
+                    doubleBody.appendChild(tr);
                 }
-                doubleTd.innerHTML = '';
-                doubleTd.appendChild(container);
             });
-        });
-        
-        exportDouble.style.position = 'absolute';
-        exportDouble.style.left = '-9999px';
-        exportDouble.style.width = '1450px';
-        document.body.appendChild(exportDouble);
-        
-        html2canvas(exportDouble, { backgroundColor: "#ffffff", scale: 3 }).then(canvas => {
-            document.body.removeChild(exportDouble);
-            const link = document.createElement('a');
-            link.download = `Plan_${von}_bis_${bis}.png`;
-            link.href = canvas.toDataURL();
-            link.click();
-            btnExport.innerText = "🚀 Exportieren";
+
+            exportDouble.style.position = 'absolute';
+            exportDouble.style.left = '-9999px';
+            exportDouble.style.width = '1450px';
+            exportDouble.style.background = 'white';
+            exportDouble.style.padding = '30px';
+            document.body.appendChild(exportDouble);
+
+            html2canvas(exportDouble, { backgroundColor: "#ffffff", scale: 2 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Plan_${targetFiliale}_${von}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+                document.body.removeChild(exportDouble);
+                resolve();
+            });
         });
     }
 </script>
